@@ -1,0 +1,5 @@
+[trackings]
+LXXXXXXXXXUS = "Keyboard"
+
+[config]
+database = "whereisit.db"
