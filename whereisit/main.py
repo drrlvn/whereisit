@@ -27,14 +27,15 @@ async def _main(*, loop, db, trackings):
 
 
 def main():
-    config_path = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser('~/.config/whereisitrc')
+    config_path = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser('~/.config/whereisit.toml')
     with open(config_path) as f:
         config = toml.load(f)
 
     import logging
     logging.getLogger('aiohttp.client').setLevel(logging.ERROR)
 
-    with shelve.open(config['config']['database']) as db:
+    db_path = os.path.join(os.path.expanduser('~/.local/share'), config['config']['database'])
+    with shelve.open(db_path) as db:
         trackings = set(config['trackings'].keys())
         saved_packages = set(db.keys())
 
