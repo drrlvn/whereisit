@@ -3,3 +3,9 @@ LXXXXXXXXXUS = "Keyboard"
 
 [config]
 database = "whereisit.db"
+
+[mailgun]
+domain = "mydomain.com"
+api_key = "key-xxxxxxxxxxxxxxxxx"
+from = "whereisit@mydomain.com"
+to = ["me@mydomain.com"]
