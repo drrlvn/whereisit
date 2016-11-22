@@ -6,6 +6,9 @@ with open(os.path.join(os.path.dirname(__file__), "whereisit", "__version__.py")
 
 install_requires = [
     "aiohttp",
+    "uvloop",
+    "aiodns",
+    "cchardet",
     "toml",
 ]
 
