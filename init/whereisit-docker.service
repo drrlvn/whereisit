@@ -1,0 +1,12 @@
+[Unit]
+Description=Dockerized whereisit
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker rm -f whereisit
+ExecStart=/usr/bin/docker run --name whereisit --rm -v /etc/whereisit.toml:/etc/whereisit.toml:ro -v /var/lib/whereisit:/var/lib/whereisit whereisit
+ExecStop=/usr/bin/docker stop whereisit
+
+[Install]
+WantedBy=multi-user.target
