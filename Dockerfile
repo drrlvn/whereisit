@@ -1,4 +1,4 @@
-FROM python
+FROM python:slim
 
 RUN mkdir /usr/src/whereisit
 COPY setup.py /usr/src/whereisit
