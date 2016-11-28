@@ -7,6 +7,8 @@ import sys
 import toml
 import uvloop
 from .db import Database
+from .exceptions import PostOfficeError
+from .html_stripper import HTMLStripper
 from .mailgun import Mailgun
 
 
@@ -29,7 +31,11 @@ class Tracker:
         async with session.get(self.URL.format(tracking)) as response:
             response.raise_for_status()
             json = await response.json()
-            return tracking, re.sub(r' *<br>.*$', '', json['itemcodeinfo'])
+            if not json['typename']:
+                raise PostOfficeError(tracking, json)
+            stripper = HTMLStripper()
+            stripper.feed(json['itemcodeinfo'])
+            return tracking, stripper.get_data()
 
     async def run(self):
         self._schedule_next_call()
@@ -40,9 +46,15 @@ class Tracker:
                            api_key=self._config['mailgun']['api_key'])
             futures = asyncio.as_completed([self._get_tracking(tracking, session=session) for tracking in trackings])
             mails = []
+            errors = {}
             with Database(self._db_path) as db:
                 for future in futures:
-                    tracking, status = await future
+                    try:
+                        tracking, status = await future
+                    except PostOfficeError as e:
+                        print(e)
+                        errors[e.tracking] = e.json
+                        continue
                     print('{}: {}'.format(tracking, status))
                     if db.getset(tracking, status) != status:
                         mails.append(mail.send(
@@ -50,6 +62,13 @@ class Tracker:
                             to_addrs=self._config['mailgun']['to'],
                             subject='Your {} is getting closer'.format(self._config['trackings'][tracking]),
                             body='{}: {}'.format(tracking, status)))
+
+            if errors:
+                mails.append(mail.send(
+                    from_addr=self._config['mailgun']['from'],
+                    to_addrs=self._config['mailgun']['to'],
+                    subject='Failed getting tracking information',
+                    body='\n'.join('{}: {}'.format(tracking, json) for tracking, json in errors.items())))
 
             if mails:
                 await asyncio.wait(mails)
