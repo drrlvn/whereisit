@@ -28,7 +28,7 @@ class Database:
 
     def purge(self, trackings):
         with self._cursor() as c:
-            c.execute('delete from trackings where id not in ({})'.format(','.join(['?']*len(trackings)), trackings)
+            c.execute('delete from trackings where id not in ({})'.format(','.join(['?']*len(trackings))), trackings)
 
     def getset(self, tracking, status):
         with self._cursor() as c:
