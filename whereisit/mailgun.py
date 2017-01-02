@@ -10,7 +10,7 @@ class Mailgun:
 
     async def send(self, *, from_addr, to_addrs, subject, body):
         request = self._session.post(
-            "https://api.mailgun.net/v3/{}/messages".format(urllib.parse.quote(self._domain)),
+            f'https://api.mailgun.net/v3/{self._domain}/messages',
             auth=aiohttp.BasicAuth("api", self._api_key),
             data={"from": from_addr,
                   "to": to_addrs,

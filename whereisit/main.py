@@ -13,7 +13,6 @@ from .mailgun import Mailgun
 
 
 class Tracker:
-    URL = 'https://www.israelpost.co.il/itemtrace.nsf/trackandtraceNDJSON?openagent&lang=EN&itemcode={}'
     INTERVAL = 60*60
 
     def __init__(self, *, loop, db_path, config):
@@ -28,7 +27,8 @@ class Tracker:
         self._loop.call_at(self._next_call, self._loop.create_task, self.run())
 
     async def _get_tracking(self, tracking, *, session):
-        async with session.get(self.URL.format(tracking)) as response:
+        url = f'https://www.israelpost.co.il/itemtrace.nsf/trackandtraceNDJSON?openagent&lang=EN&itemcode={tracking}'
+        async with session.get(url) as response:
             response.raise_for_status()
             json = await response.json()
             if not json['typename']:
@@ -55,20 +55,20 @@ class Tracker:
                         print(e)
                         errors[e.tracking] = e.json
                         continue
-                    print('{}: {}'.format(tracking, status))
+                    print(f'{tracking}: {status}')
                     if db.getset(tracking, status) != status:
                         mails.append(mail.send(
                             from_addr=self._config['mailgun']['from'],
                             to_addrs=self._config['mailgun']['to'],
-                            subject='Your {} is getting closer'.format(self._config['trackings'][tracking]),
-                            body='{}: {}'.format(tracking, status)))
+                            subject=f'Your {self._config["trackings"][tracking]} is getting closer',
+                            body=f'{tracking}: {status}'))
 
             if errors:
                 mails.append(mail.send(
                     from_addr=self._config['mailgun']['from'],
                     to_addrs=self._config['mailgun']['to'],
                     subject='Failed getting tracking information',
-                    body='\n'.join('{}: {}'.format(tracking, json) for tracking, json in errors.items())))
+                    body='\n'.join(f'{tracking}: {json}' for tracking, json in errors.items())))
 
             if mails:
                 await asyncio.wait(mails)
