@@ -46,14 +46,12 @@ class Tracker:
                            api_key=self._config['mailgun']['api_key'])
             futures = asyncio.as_completed([self._get_tracking(tracking, session=session) for tracking in trackings])
             mails = []
-            errors = {}
             with Database(self._db_path) as db:
                 for future in futures:
                     try:
                         tracking, status = await future
                     except PostOfficeError as e:
                         print(e)
-                        errors[e.tracking] = e.json
                         continue
                     print(f'{tracking}: {status}')
                     if db.getset(tracking, status) != status:
@@ -62,13 +60,6 @@ class Tracker:
                             to_addrs=self._config['mailgun']['to'],
                             subject=f'Your {self._config["trackings"][tracking]} is getting closer',
                             body=f'{tracking}: {status}'))
-
-            if errors:
-                mails.append(mail.send(
-                    from_addr=self._config['mailgun']['from'],
-                    to_addrs=self._config['mailgun']['to'],
-                    subject='Failed getting tracking information',
-                    body='\n'.join(f'{tracking}: {json}' for tracking, json in errors.items())))
 
             if mails:
                 await asyncio.wait(mails)
