@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
-import os
+from pathlib import Path
 
-with open(os.path.join(os.path.dirname(__file__), "whereisit", "__version__.py")) as version_file:
+with (Path(__file__).parent / "whereisit" / "__version__.py").open() as version_file:
     exec(version_file.read())  # pylint: disable=W0122
 
 install_requires = [

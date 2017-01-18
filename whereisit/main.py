@@ -1,11 +1,11 @@
 import aiohttp
 import asyncio
 import contextlib
-import os
 import re
 import sys
 import toml
 import uvloop
+from pathlib import Path
 from .db import Database
 from .exceptions import PostOfficeError
 from .html_stripper import HTMLStripper
@@ -66,14 +66,14 @@ class Tracker:
 
 
 def main():
-    config_path = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser('~/.config/whereisit.toml')
+    config_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.home() / '.config' / 'whereisit.toml'
     with open(config_path) as f:
         config = toml.load(f)
 
     import logging
     logging.getLogger('aiohttp.client').setLevel(logging.ERROR)
 
-    db_path = os.path.join(os.path.expanduser('~/.local/share'), config['config']['database'])
+    db_path = Path.home() / '.local' / 'share' / config['config']['database']
     with Database(db_path) as db:
         db.ensure_schema()
         db.purge(list(config['trackings'].keys()))
