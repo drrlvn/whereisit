@@ -8,7 +8,7 @@ class Database:
         self._db = None
 
     def __enter__(self):
-        self._db = sqlite3.connect(self._path)
+        self._db = sqlite3.connect(str(self._path))
         return self
 
     @contextmanager
