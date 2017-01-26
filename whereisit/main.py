@@ -5,8 +5,9 @@ import re
 import sys
 import toml
 import uvloop
+from pony import orm
 from pathlib import Path
-from .db import Database
+from .db import db, Tracking
 from .exceptions import PostOfficeError
 from .html_stripper import HTMLStripper
 from .mailgun import Mailgun
@@ -15,10 +16,10 @@ from .mailgun import Mailgun
 class Tracker:
     INTERVAL = 60*60
 
-    def __init__(self, *, loop, db_path, config):
+    def __init__(self, *, loop, db, config):
         super().__init__()
         self._loop = loop
-        self._db_path = db_path
+        self._db = db
         self._config = config
         self._next_call = self._loop.time()
 
@@ -46,20 +47,27 @@ class Tracker:
                            api_key=self._config['mailgun']['api_key'])
             futures = asyncio.as_completed([self._get_tracking(tracking, session=session) for tracking in trackings])
             mails = []
-            with Database(self._db_path) as db:
+            with orm.db_session():
                 for future in futures:
                     try:
-                        tracking, status = await future
+                        tracking_id, status = await future
                     except PostOfficeError as e:
                         print(e)
                         continue
-                    print(f'{tracking}: {status}')
-                    if db.getset(tracking, status) != status:
+                    print(f'{tracking_id}: {status}')
+
+                    tracking = orm.get(t for t in Tracking if t.id == tracking_id)
+                    if not tracking:
+                        tracking = Tracking(id=tracking_id)
+                        self._db.commit()
+
+                    if tracking.status != status:
                         mails.append(mail.send(
                             from_addr=self._config['mailgun']['from'],
                             to_addrs=self._config['mailgun']['to'],
-                            subject=f'Your {self._config["trackings"][tracking]} is getting closer',
+                            subject=f'Your {self._config["trackings"][tracking_id]} is getting closer',
                             body=f'{tracking}: {status}'))
+                        tracking.status = status
 
             if mails:
                 await asyncio.wait(mails)
@@ -73,13 +81,17 @@ def main():
     import logging
     logging.getLogger('aiohttp.client').setLevel(logging.ERROR)
 
-    db_path = Path.home() / '.local' / 'share' / config['config']['database']
-    with Database(db_path) as db:
-        db.ensure_schema()
-        db.purge(list(config['trackings'].keys()))
+    db_path = Path.home() / '.local' / 'share' / config['database']['path']
+    orm.sql_debug(config['database'].get('debug', False))
+    db.bind("sqlite", str(db_path), create_db=True)
+    db.generate_mapping(create_tables=True)
+
+    with orm.db_session():
+        orm.select(t for t in db.Tracking
+                   if t.id not in list(config['trackings'].keys())).delete(bulk=True)
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     with contextlib.closing(asyncio.get_event_loop()) as loop:
-        tracker = Tracker(loop=loop, db_path=db_path, config=config)
+        tracker = Tracker(loop=loop, db=db, config=config)
         loop.create_task(tracker.run())
         loop.run_forever()

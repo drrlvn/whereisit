@@ -1,8 +1,9 @@
 [trackings]
 LXXXXXXXXXUS = "Keyboard"
 
-[config]
-database = "whereisit.db"
+[database]
+path = "whereisit.db"
+debug = false
 
 [mailgun]
 domain = "mydomain.com"
