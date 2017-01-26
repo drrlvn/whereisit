@@ -8,6 +8,7 @@ install_requires = [
     "aiohttp",
     "uvloop",
     "toml",
+    "pony",
 ]
 
 setup(name="whereisit",
