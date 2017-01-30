@@ -66,7 +66,7 @@ class Tracker:
                             from_addr=self._config['mailgun']['from'],
                             to_addrs=self._config['mailgun']['to'],
                             subject=f'Your {self._config["trackings"][tracking_id]} is getting closer',
-                            body=f'{tracking}: {status}'))
+                            body=f'{tracking_id}: {status}'))
                         tracking.status = status
 
             if mails:
