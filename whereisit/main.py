@@ -28,7 +28,7 @@ class Tracker:
         self._loop.call_at(self._next_call, self._loop.create_task, self.run())
 
     async def _get_tracking(self, tracking, *, session):
-        url = f'https://www.israelpost.co.il/itemtrace.nsf/trackandtraceNDJSON?openagent&lang=EN&itemcode={tracking}'
+        url = f'http://www.israelpost.co.il/itemtrace.nsf/trackandtraceNDJSON?openagent&lang=EN&itemcode={tracking}'
         async with session.get(url) as response:
             response.raise_for_status()
             json = await response.json()
