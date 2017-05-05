@@ -9,6 +9,7 @@ install_requires = [
     "uvloop",
     "toml",
     "pony",
+    "beautifulsoup4",
 ]
 
 setup(name="whereisit",
