@@ -1,15 +1,18 @@
-import aiohttp
 import asyncio
 import contextlib
-import re
+import json
 import sys
+from pathlib import Path
+
+import aiohttp
 import toml
 import uvloop
+from bs4 import BeautifulSoup
 from pony import orm
-from pathlib import Path
-from .db import db, Tracking
+
+from .db import db as database
+from .db import Tracking
 from .exceptions import PostOfficeError
-from .html_stripper import HTMLStripper
 from .mailgun import Mailgun
 
 
@@ -31,12 +34,12 @@ class Tracker:
         url = f'http://www.israelpost.co.il/itemtrace.nsf/trackandtraceNDJSON?openagent&lang=EN&itemcode={tracking}'
         async with session.get(url) as response:
             response.raise_for_status()
-            json = await response.json()
-            if not json['typename']:
-                raise PostOfficeError(tracking, json)
-            stripper = HTMLStripper()
-            stripper.feed(json['itemcodeinfo'])
-            return tracking, stripper.get_data()
+            result = json.loads(await response.text())
+            if not result['typename']:
+                raise PostOfficeError(tracking, result)
+            soup = BeautifulSoup(result['itemcodeinfo'], 'html.parser')
+            status = " - ".join(td.text for td in soup.find_all('tr')[1].find_all('td'))
+            return tracking, status
 
     async def run(self):
         self._schedule_next_call()
@@ -83,15 +86,15 @@ def main():
 
     db_path = Path.home() / '.local' / 'share' / config['database']['path']
     orm.sql_debug(config['database'].get('debug', False))
-    db.bind("sqlite", str(db_path), create_db=True)
-    db.generate_mapping(create_tables=True)
+    database.bind("sqlite", str(db_path), create_db=True)
+    database.generate_mapping(create_tables=True)
 
     with orm.db_session():
-        orm.select(t for t in db.Tracking
+        orm.select(t for t in database.Tracking
                    if t.id not in list(config['trackings'].keys())).delete(bulk=True)
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     with contextlib.closing(asyncio.get_event_loop()) as loop:
-        tracker = Tracker(loop=loop, db=db, config=config)
+        tracker = Tracker(loop=loop, db=database, config=config)
         loop.create_task(tracker.run())
         loop.run_forever()
